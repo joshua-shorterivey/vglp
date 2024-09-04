@@ -1,0 +1,234 @@
+<!doctype html>
+<html>
+
+<head>
+  <title>Vega-Lite Bar Chart</title>
+  <meta charset="utf-8" />
+
+  <script src="https://cdn.jsdelivr.net/npm/vega@5.29.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.20.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.25.0"></script>
+
+  <style media="screen">
+    /* Add space between Vega-Embed links */
+    .vega-actions a {
+      margin-right: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Template for Embedding Vega-Lite Visualization</h1>
+  <!-- Container for the visualization -->
+  <div id="vis"></div>
+
+  <script>
+    // Assign the specification to a local variable vlSpec.
+    var vlSpec = {
+      "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+      "data": {
+        "url": "https://www.ncei.noaa.gov/access/services/data/v1?dataset=daily-summaries&startDate=2020-01-01&endDate=2024-08-24&stations=USW00024233,USW00003017,USW00023293,USW00023234,USW00023230&dataTypes=TMAX,TMIN,TAVG,PRCP,AWND,WT01,SNOW&format=json&units=metric&includeStationName=true&includeStationLocation=true",
+        "format": {
+          "type": "json",
+          "parse": {
+            "TMAX": "number",
+            "TMIN": "number",
+            "TAVG": "number",
+            "DATE": "date",
+            "PRCP": "number",
+            "SNOW": "number",
+            "WT01": "number"
+          }
+        }
+      },
+      "params": [
+        {
+          "name": "filterCity",
+          "value": "SAN JOSE, CA US",
+          "bind": {
+            "input": "select",
+            "options": [
+              "SAN JOSE, CA US",
+              "SEATTLE TACOMA AIRPORT, WA US",
+              "DENVER INTERNATIONAL AIRPORT, CO US",
+              "SAN FRANCISCO INTERNATIONAL AIRPORT, CA US",
+              "OAKLAND INTERNATIONAL AIRPORT, CA US"
+            ]
+          }
+        }
+      ],
+      "transform": [
+        { "calculate": "(datum.TMIN + datum.TMAX)/2", "as": "DAVG" },
+        { "impute": "TMAX", "key": "DATE", "method": "median", "frame": [-2, 2] },
+        { "impute": "TMIN", "key": "DATE", "method": "median", "frame": [-2, 2] },
+        { "filter": "datum.NAME === filterCity" }
+      ],
+      "vconcat": [
+        {
+          "hconcat": [
+            {
+              "vconcat": [
+                {
+                  "title": "Daily Average Temperature",
+                  "width": 1000,
+                  "mark": "line",
+                  "params": [
+                    {
+                      "name": "stationSelect",
+                      "select": { "type": "point", "fields": ["NAME"] },
+                      "bind": "legend"
+                    }
+                  ],
+                  "encoding": {
+                    "x": { "field": "DATE", "type": "temporal", "title": "Date" },
+                    "y": {
+                      "field": "DAVG",
+                      "type": "quantitative",
+                      "title": "Temperature in C"
+                    },
+                    "color": {
+                      "condition": {
+                        "param": "stationSelect",
+                        "field": "NAME",
+                        "type": "nominal"
+                      },
+                      "value": "grey"
+                    },
+                    "opacity": {
+                      "condition": { "param": "stationSelect", "value": 1 },
+                      "value": 0.2
+                    }
+                  }
+                },
+                {
+                  "title": "Minumum/Maximum Temperatures",
+                  "height": 300,
+                  "width": 1000,
+                  "mark": "point",
+                  "encoding": {
+                    "x": {
+                      "timeUnit": "binnedutcyearmonthdate",
+                      "field": "DATE",
+                      "type": "temporal"
+                    },
+                    "tooltip": [
+                      { "field": "TMAX", "type": "quantitative" },
+                      { "field": "TMIN", "type": "quantitative" }
+                    ]
+                  },
+                  "layer": [
+                    {
+                      "mark": { "type": "line" },
+                      "encoding": {
+                        "y": { "field": "TMIN", "type": "quantitative" },
+                        "color": { "field": "NAME" },
+                        "opacity": {
+                          "condition": { "param": "stationSelect", "value": 1 },
+                          "value": 0.1
+                        }
+                      }
+                    },
+                    {
+                      "mark": { "type": "line", "color": "purple" },
+                      "encoding": {
+                        "y": { "field": "TMAX", "type": "quantitative" },
+                        "color": { "field": "NAME" },
+                        "opacity": {
+                          "condition": { "param": "stationSelect", "value": 1 },
+                          "value": 0.2
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "vconcat": [
+                {
+                  "mark": "bar",
+                  "title": "Total Average Monthly Precipitation",
+                  "params": [
+                    {
+                      "name": "stationSelect",
+                      "select": { "type": "point", "fields": ["STATION"] },
+                      "bind": "legend"
+                    }
+                  ],
+                  "encoding": {
+                    "x": { "field": "DATE", "timeUnit": "month" },
+                    "y": {
+                      "field": "PRCP",
+                      "type": "quantitative",
+                      "aggregate": "average",
+                      "title": "Monthly Precipitation"
+                    },
+                    "color": { "field": "NAME" },
+                    "opacity": {
+                      "condition": { "param": "stationSelect", "value": 1 },
+                      "value": 0.2
+                    }
+                  }
+                },
+                {
+                  "title": "Average Winds",
+                  "mark": { "type": "boxplot", "extent": "min-max" },
+                  "encoding": {
+                    "x": { "field": "DATE", "timeUnit": "month" },
+                    "y": { "field": "AWND", "type": "quantitative" },
+                    "color": { "field": "NAME" }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Weather Phenomena",
+          "transform": [
+            { "calculate": "datum.WT01 === null ? 0 : datum.WT01", "as": "fog" },
+            { "calculate": "datum.SNOW === null ? 0 : datum.SNOW", "as": "snw" },
+            { "calculate": "datum.snw !== 0 ? 1 : datum.snw", "as": "snw" },
+            {
+              "calculate": "datum.PRCP === null ? 0 : datum.PRCP",
+              "as": "precipitation"
+            },
+            {
+              "calculate": "datum.PRCP !== 0 ? 1 : datum.precipitation",
+              "as": "precipitation"
+            },
+            {
+              "fold": ["fog", "snw", "precipitation"],
+              "as": ["weather_type", "value"]
+            },
+            {
+              "aggregate": [{ "op": "sum", "field": "value", "as": "total_value" }],
+              "groupby": ["weather_type"]
+            }
+          ],
+          "width": 1000,
+          "mark": "bar",
+          "encoding": {
+            "y": {
+              "field": "weather_type",
+              "type": "nominal",
+              "title": "Weather Type"
+            },
+            "x": {
+              "field": "total_value",
+              "type": "quantitative",
+              "title": "Total Value"
+            },
+            "color": { "field": "weather_type", "type": "nominal" }
+          }
+        }
+      ]
+    }
+      ;
+
+    // Embed the visualization in the container with id `vis`
+    vegaEmbed('#vis', vlSpec);
+  </script>
+</body>
+
+</html>
